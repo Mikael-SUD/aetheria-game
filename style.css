@@ -636,9 +636,8 @@ body {
 }
 
 .combat-window {
-  width: 94%;
-  max-width: 900px;
-  height: 94%;
+  width: min(920px, 95vw);
+  height: min(600px, 92vh);
   background: var(--bg-card);
   border: 1px solid var(--border-glass);
   border-radius: 12px;
@@ -709,7 +708,9 @@ body {
 
 .combat-stage {
   flex: 1;
-  background: #030408;
+  min-height: 200px;
+  background: radial-gradient(circle at 50% 30%, #0f172a 0%, #030508 100%);
+  border: 1px solid var(--border-glass);
   border-radius: 8px;
   margin: 8px 0;
   overflow: hidden;
@@ -721,6 +722,7 @@ body {
   height: 100%;
   display: block;
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .combat-bottom-deck {

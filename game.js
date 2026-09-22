@@ -496,12 +496,26 @@ const Game = {
 
   resizeCanvas() {
     const area = document.getElementById('game-main-area');
-    if (!area || !this.canvas) return;
-    const rect = area.getBoundingClientRect();
+    if (area && this.canvas) {
+      const rect = area.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        this.canvas.width = Math.round(rect.width);
+        this.canvas.height = Math.round(rect.height);
+        if (this.ctx) this.ctx.imageSmoothingEnabled = false;
+      }
+    }
+    this.syncBattleCanvasSize();
+  },
+
+  syncBattleCanvasSize() {
+    const c = document.getElementById('battleStageCanvas');
+    if (!c || !c.parentElement) return;
+    const rect = c.parentElement.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
-      this.canvas.width = Math.round(rect.width);
-      this.canvas.height = Math.round(rect.height);
-      if (this.ctx) this.ctx.imageSmoothingEnabled = false;
+      c.width = Math.round(rect.width);
+      c.height = Math.round(rect.height);
+      const ctx = c.getContext('2d');
+      if (ctx) ctx.imageSmoothingEnabled = false;
     }
   },
 
@@ -2820,48 +2834,71 @@ const Game = {
   renderBattleStage(timeSec) {
     const c = document.getElementById('battleStageCanvas');
     if (!c) return;
+    
+    // Auto-calibrate resolution to true display pixels to prevent any stretching/gepeng
+    if (c.width !== Math.round(c.clientWidth) || c.height !== Math.round(c.clientHeight)) {
+      if (c.clientWidth > 0 && c.clientHeight > 0) {
+        c.width = Math.round(c.clientWidth);
+        c.height = Math.round(c.clientHeight);
+      }
+    }
+
     const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
     const w = c.width;
     const h = c.height;
 
     ctx.save();
     ctx.clearRect(0, 0, w, h);
 
-    ctx.fillStyle = '#0b0f19';
+    // Deep Cosmic Arena Background
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, '#050811');
+    bgGrad.addColorStop(0.5, '#0c1322');
+    bgGrad.addColorStop(1, '#020408');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, w, h);
 
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
+    // Cyber Arena Ground Perspective Grid
+    const floorY = Math.round(h * 0.58);
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.15)';
     ctx.lineWidth = 1;
-    for (let y = 140; y < h; y += 22) {
+    for (let y = floorY; y < h; y += 18) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
       ctx.stroke();
     }
 
-    // Hero at (220, 180) in Pyromancer reference style
+    // Dynamic Positions: Hero grounded on the left, Monster on the right
+    const hx = Math.round(w * 0.28);
+    const hy = Math.round(h * 0.72);
+    const mx = Math.round(w * 0.72);
+    const my = Math.round(h * 0.70);
+
+    // Hero at (hx, hy)
     ctx.save();
-    ctx.translate(220, 180);
-    this.drawPyromancerStyleHero(ctx, this.player.classId, 2.8, 'right', 0, timeSec);
+    ctx.translate(hx, hy);
+    this.drawPyromancerStyleHero(ctx, this.player.classId, 2.4, 'right', 0, timeSec);
     ctx.restore();
 
-    // Monster at (620, 170)
+    // Monster at (mx, my)
     ctx.save();
-    ctx.translate(620, 170);
+    ctx.translate(mx, my);
     if (this.battle.monster) {
       this.drawMonsterCombatPose(ctx, this.battle.monster.id);
     }
     ctx.restore();
 
-    this.renderCombatSkillAnimations(ctx, w, h);
+    this.renderCombatSkillAnimations(ctx, w, h, hx, hy, mx, my);
     ctx.restore();
   },
 
-  renderCombatSkillAnimations(ctx, w, h) {
-    const hx = 220;
-    const hy = 180;
-    const mx = 620;
-    const my = 170;
+  renderCombatSkillAnimations(ctx, w, h, hx, hy, mx, my) {
+    if (!hx) hx = Math.round(w * 0.28);
+    if (!hy) hy = Math.round(h * 0.72);
+    if (!mx) mx = Math.round(w * 0.72);
+    if (!my) my = Math.round(h * 0.70);
 
     this.combatVFX.forEach(vfx => {
       const p = vfx.time / vfx.duration;
@@ -3025,24 +3062,49 @@ const Game = {
       ctx.fillRect(18 * bScale, -36 * bScale, 10 * bScale, 52 * bScale);
       ctx.fillRect(-28 * bScale, -36 * bScale, 10 * bScale, 52 * bScale);
     } else if (id === 'ferroslime') {
+      // Mechanical Reinforced Spider Legs
       ctx.fillStyle = cOutline;
-      ctx.fillRect(-19 * s, 0, 38 * s, 18 * s);
+      ctx.fillRect(-15 * s, 4 * s, 6 * s, 14 * s);
+      ctx.fillRect(9 * s, 4 * s, 6 * s, 14 * s);
+      ctx.fillRect(-18 * s, 12 * s, 6 * s, 6 * s);
+      ctx.fillRect(12 * s, 12 * s, 6 * s, 6 * s);
       ctx.fillStyle = '#64748b';
-      ctx.fillRect(-18 * s, 2 * s, 6 * s, 14 * s);
-      ctx.fillRect(12 * s, 2 * s, 6 * s, 14 * s);
+      ctx.fillRect(-14 * s, 5 * s, 4 * s, 12 * s);
+      ctx.fillRect(10 * s, 5 * s, 4 * s, 12 * s);
+
+      // Slime Body (Curved organic glowing green dome)
+      ctx.fillStyle = cOutline;
+      ctx.beginPath();
+      ctx.arc(0, -6 * s, 18 * s, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.fillStyle = '#15803d';
       ctx.beginPath();
       ctx.arc(0, -6 * s, 16 * s, 0, Math.PI * 2);
       ctx.fill();
+
       ctx.fillStyle = '#22c55e';
       ctx.beginPath();
-      ctx.arc(0, -6 * s, 12 * s, 0, Math.PI * 2);
+      ctx.arc(0, -6 * s, 13 * s, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(-6 * s, -10 * s, 12 * s, 8 * s);
+
+      // Slime Inner Acid Core
+      ctx.fillStyle = '#86efac';
+      ctx.beginPath();
+      ctx.arc(0, -7 * s, 8 * s, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Glowing Cybernetic Red Visor Eye
+      ctx.fillStyle = cOutline;
+      ctx.fillRect(-7 * s, -11 * s, 14 * s, 9 * s);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-6 * s, -10 * s, 12 * s, 7 * s);
       ctx.fillStyle = '#ef4444';
-      ctx.fillRect(-4 * s, -8 * s, 3 * s, 3 * s);
-      ctx.fillRect(1 * s, -8 * s, 3 * s, 3 * s);
+      ctx.fillRect(-4 * s, -9 * s, 3 * s, 5 * s);
+      ctx.fillRect(1 * s, -9 * s, 3 * s, 5 * s);
+      ctx.fillStyle = '#fecaca';
+      ctx.fillRect(-3 * s, -8 * s, 1 * s, 2 * s);
+      ctx.fillRect(2 * s, -8 * s, 1 * s, 2 * s);
     } else if (id === 'sentinel') {
       ctx.fillStyle = cOutline;
       ctx.fillRect(-15 * s, -13 * s, 30 * s, 18 * s);
