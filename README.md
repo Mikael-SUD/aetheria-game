@@ -9,6 +9,21 @@
 
 ---
 
+## 📖 Sinopsis Cerita (Story Synopsis)
+
+> *"Ketika waktu terbelah dan ruang hancur berpuing, hanya pecahan Inti Aetherial yang dapat merekatkan kembali benang-benang realitas..."*
+
+Pada **Tahun 2184**, bencana besar yang dikenal sebagai **Siklus Kehancuran Singularitas** melanda Bumi. Retakan dimensional merobek tatanan ruang-waktu, melahirkan anomali monster mengerikan dan memecah peradaban manusia ke dalam berbagai distrik dimensi yang terisolasi.
+
+Pemain bangkit di **Sanctuary Perlindungan Aliansi** sebagai seorang **Kadet Aetherial Terpilih** yang memiliki resonansi dengan energi murni elemen kuantum:
+- **🔥 Pyromancer (Ignis Vektor):** Penguasa eksitasi termal, membakar musuh dengan ledakan plasma berdaya rusak tinggi.
+- **❄️ Cryomancer (Glacies Entropi):** Penjinak entropi mutlak, membekukan materi dan menciptakan perisai kristal es heksagonal.
+- **⚡ Electromancer (Fulmen Kinetik):** Pengendali partikel kinetik frekuensi tinggi, melumpuhkan lawan lewat rantai petir berkecepatan kilat.
+
+Untuk menyelamatkan dunia dari kehancuran total, Anda harus melintasi gerbang portal dimensi antarzona—mulai dari reruntuhan kota terbakar (*Ruined City*), laboratorium biologi mutasi (*Toxic Bio-Forest*), mainframe siber purba (*Ancient Cyber-Grid*), hingga pusat kehampaan (*Void Singularity*). Kalahkan para Titan Anomali di setiap Chapter, pecahkan misteri **Death-Riddle (Teka-Teki Paradoks Kuantum)**, dan pulihkan **Inti Singularitas Aetheria** sebelum waktu habis selamanya!
+
+---
+
 ## 📸 Tangkapan Layar (Screenshots)
 
 ### ⚔️ Arena Pertarungan Taktis (Tactical Combat Arena)
