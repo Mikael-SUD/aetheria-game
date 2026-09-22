@@ -11,6 +11,9 @@ class SoundSynth {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this.bgmTimer = null;
+    this.bgmTheme = 'peaceful';
+    this.bgmStep = 0;
   }
 
   init() {
@@ -36,6 +39,65 @@ class SoundSynth {
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
     } catch (e) {}
+  }
+
+  startBGM(theme = 'peaceful') {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    this.bgmTheme = theme;
+    if (this.bgmTimer) clearInterval(this.bgmTimer);
+
+    const chords = {
+      peaceful: [
+        [261.63, 329.63, 392.00, 523.25],
+        [220.00, 261.63, 329.63, 440.00],
+        [174.61, 220.00, 261.63, 349.23],
+        [196.00, 246.94, 293.66, 392.00]
+      ],
+      ruins: [
+        [146.83, 174.61, 220.00, 293.66],
+        [130.81, 164.81, 196.00, 261.63],
+        [116.54, 146.83, 174.61, 233.08],
+        [110.00, 138.59, 164.81, 220.00]
+      ],
+      battle: [
+        [110.00, 146.83, 164.81, 220.00, 329.63],
+        [98.00, 130.81, 146.83, 196.00, 293.66],
+        [87.31, 116.54, 130.81, 174.61, 261.63],
+        [123.47, 164.81, 185.00, 246.94, 370.00]
+      ]
+    };
+
+    this.bgmTimer = setInterval(() => {
+      if (!this.enabled || !this.ctx) return;
+      const themeChords = chords[this.bgmTheme] || chords.peaceful;
+      const currentChord = themeChords[Math.floor(this.bgmStep / 4) % themeChords.length];
+      const note = currentChord[this.bgmStep % currentChord.length];
+      
+      try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = this.bgmTheme === 'battle' ? 'sawtooth' : 'sine';
+        osc.frequency.setValueAtTime(note, this.ctx.currentTime);
+        const vol = this.bgmTheme === 'battle' ? 0.035 : 0.022;
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + (this.bgmTheme === 'battle' ? 0.35 : 0.9));
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + (this.bgmTheme === 'battle' ? 0.4 : 1.0));
+      } catch (e) {}
+
+      this.bgmStep++;
+    }, 280);
+  }
+
+  stopBGM() {
+    if (this.bgmTimer) {
+      clearInterval(this.bgmTimer);
+      this.bgmTimer = null;
+    }
   }
 
   step() { this.playTone(85 + Math.random() * 35, 'triangle', 0.04, 0.04); }
@@ -402,17 +464,53 @@ const Game = {
     this.bindControls();
     this.renderClassAvatars();
     this.setupCombatTabs();
+    this.resizeCanvas();
 
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.mainLoop(t));
   },
 
+  toggleFullscreen() {
+    AudioSys.click();
+    if (!document.fullscreenElement) {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+  },
+
+  onFullscreenChange() {
+    const isFs = !!document.fullscreenElement;
+    const btn = document.getElementById('btn-fullscreen');
+    if (btn) {
+      btn.innerHTML = isFs ? '🗗 <span class="hotkey">F</span>' : '⛶ <span class="hotkey">F</span>';
+      btn.title = isFs ? 'Keluar Layar Penuh [F]' : 'Layar Penuh [F]';
+    }
+    setTimeout(() => this.resizeCanvas(), 80);
+  },
+
+  resizeCanvas() {
+    const area = document.getElementById('game-main-area');
+    if (!area || !this.canvas) return;
+    const rect = area.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      this.canvas.width = Math.round(rect.width);
+      this.canvas.height = Math.round(rect.height);
+      if (this.ctx) this.ctx.imageSmoothingEnabled = false;
+    }
+  },
+
   initFalloutAsh() {
     this.falloutAsh = [];
-    for (let i = 0; i < 45; i++) {
+    for (let i = 0; i < 60; i++) {
       this.falloutAsh.push({
-        x: Math.random() * 960,
-        y: Math.random() * 540,
+        x: Math.random() * (this.canvas ? this.canvas.width : 960),
+        y: Math.random() * (this.canvas ? this.canvas.height : 540),
         vx: (Math.random() - 0.7) * 20,
         vy: Math.random() * 15 + 10,
         size: Math.random() * 2.5 + 1,
@@ -430,6 +528,13 @@ const Game = {
     window.addEventListener('keyup', (e) => {
       this.keys[e.key.toLowerCase()] = false;
     });
+
+    window.addEventListener('resize', () => this.resizeCanvas());
+    document.addEventListener('fullscreenchange', () => this.onFullscreenChange());
+    document.addEventListener('webkitfullscreenchange', () => this.onFullscreenChange());
+
+    const fsBtn = document.getElementById('btn-fullscreen');
+    if (fsBtn) fsBtn.addEventListener('click', () => this.toggleFullscreen());
 
     document.querySelectorAll('.class-choice-card').forEach(card => {
       card.addEventListener('click', () => {
@@ -451,7 +556,12 @@ const Game = {
     document.getElementById('btn-sound').addEventListener('click', (e) => {
       AudioSys.enabled = !AudioSys.enabled;
       e.target.textContent = AudioSys.enabled ? '🔊' : '🔇';
-      AudioSys.click();
+      if (!AudioSys.enabled) {
+        AudioSys.stopBGM();
+      } else {
+        AudioSys.click();
+        AudioSys.startBGM(this.gameState === 'battle' ? 'battle' : (this.currentMapId === 'city' ? 'ruins' : 'peaceful'));
+      }
     });
 
     document.getElementById('btn-close-dialogue').addEventListener('click', () => this.closeDialogue());
@@ -474,6 +584,10 @@ const Game = {
   },
 
   handleKeyDown(key) {
+    if (key === 'f') {
+      this.toggleFullscreen();
+      return;
+    }
     if (this.gameState === 'explore') {
       if (key === 'e' || key === ' ') this.triggerInteraction();
       else if (key === 'b') this.toggleShop(true);
@@ -516,12 +630,14 @@ const Game = {
     this.recalculateStats();
     this.player.skills = JSON.parse(JSON.stringify(SKILLS_DB[classId]));
     AudioSys.levelUp();
+    AudioSys.startBGM('peaceful');
 
     document.getElementById('screen-class-select').classList.remove('active');
     document.getElementById('screen-class-select').classList.add('hidden');
 
     this.drawHeroFace();
     this.updateTopHUD();
+    this.resizeCanvas();
   },
 
   recalculateStats() {
@@ -1572,8 +1688,9 @@ const Game = {
     this.falloutAsh.forEach(a => {
       a.x += a.vx * dt;
       a.y += a.vy * dt;
-      if (a.y > 540) { a.y = -10; a.x = Math.random() * 960; }
-      if (a.x < -10) a.x = 970;
+      if (a.y > this.canvas.height + 20) { a.y = -10; a.x = Math.random() * this.canvas.width; }
+      if (a.x < -20) a.x = this.canvas.width + 10;
+      if (a.x > this.canvas.width + 20) a.x = -10;
     });
 
     if (this.combatVFX.length > 0) {
@@ -1647,13 +1764,14 @@ const Game = {
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(px + 12, py + 12, 8, 8);
       } else {
+        const pulse = 1 + Math.sin(timeSec * 5) * 0.15;
         ctx.fillStyle = 'rgba(217, 70, 239, 0.4)';
         ctx.beginPath();
-        ctx.ellipse(px + 16, py + 16, 20, 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(px + 16, py + 16, 22 * pulse, 14 * pulse, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#f472b6';
         ctx.beginPath();
-        ctx.arc(px + 16, py + 16, 8, 0, Math.PI * 2);
+        ctx.arc(px + 16, py + 16, 9 * pulse, 0, Math.PI * 2);
         ctx.fill();
       }
     });
@@ -1677,21 +1795,41 @@ const Game = {
 
     ctx.restore();
 
-    // Drifting Fallout Ash & Burning Embers
+    // Drifting Atmospheric Particles (Adaptive to Current Realm)
     this.falloutAsh.forEach(a => {
-      ctx.fillStyle = this.currentMapId === 'city' ? 'rgba(251, 146, 60, ' + a.alpha + ')' : 'rgba(241, 245, 249, ' + a.alpha + ')';
+      if (this.currentMapId === 'city') {
+        ctx.fillStyle = 'rgba(251, 146, 60, ' + (a.alpha * 1.2) + ')'; // Fiery sparks
+      } else if (this.currentMapId === 'forest') {
+        ctx.fillStyle = 'rgba(52, 211, 153, ' + (a.alpha * 0.9) + ')'; // Bio-hazard spores
+      } else if (this.currentMapId === 'cyber') {
+        ctx.fillStyle = 'rgba(0, 229, 255, ' + (a.alpha * 1.1) + ')'; // Cyber data sparks
+      } else if (this.currentMapId === 'void') {
+        ctx.fillStyle = 'rgba(192, 132, 252, ' + (a.alpha * 1.3) + ')'; // Void stardust
+      } else {
+        ctx.fillStyle = 'rgba(241, 245, 249, ' + a.alpha + ')'; // Ethereal aether motes
+      }
       ctx.beginPath();
       ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // Ambient Lighting
+    // Rich Cinematic Dynamic Radial Torchlight & Elemental Aura
     const haloX = this.player.x - this.camera.x;
     const haloY = this.player.y - this.camera.y;
-    const haloGrad = ctx.createRadialGradient(haloX, haloY, 150, haloX, haloY, 500);
-    haloGrad.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
-    haloGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.0)');
-    haloGrad.addColorStop(1, 'rgba(6, 10, 22, 0.28)');
+
+    let auraRGB = '255, 120, 40';
+    if (this.player.classId === 'cryomancer') auraRGB = '0, 220, 255';
+    else if (this.player.classId === 'electromancer') auraRGB = '217, 70, 239';
+
+    const pulse = 1 + Math.sin(timeSec * 4) * 0.06;
+    const innerRadius = 50 * pulse;
+    const outerRadius = Math.max(w, h) * 0.65;
+
+    const haloGrad = ctx.createRadialGradient(haloX, haloY, innerRadius, haloX, haloY, outerRadius);
+    haloGrad.addColorStop(0, `rgba(${auraRGB}, 0.14)`);
+    haloGrad.addColorStop(0.25, `rgba(${auraRGB}, 0.04)`);
+    haloGrad.addColorStop(0.65, 'rgba(0, 0, 0, 0.15)');
+    haloGrad.addColorStop(1, 'rgba(3, 6, 14, 0.68)');
     ctx.fillStyle = haloGrad;
     ctx.fillRect(0, 0, w, h);
   },
